@@ -1500,13 +1500,29 @@ async def delete_review(review_id: str, current_user: User = Depends(get_current
 # Include router and add CORS
 app.include_router(api_router)
 
+# Define allowed origins (Localhost + Your Domain + Railway)
+origins = [
+    "http://localhost:3000",
+    "https://britsyncaiacademy.online",
+    "http://britsyncaiacademy.online",
+    "https://learnhub-production-3604.up.railway.app",
+    "*"  # Optional: Allows everyone (good for debugging, remove later for security)
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+@app.get("/")
+async def root():
+    return {"message": "LearnHub Backend is running", "docs": "/docs"}
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
