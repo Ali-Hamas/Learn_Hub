@@ -63,7 +63,8 @@ export default function InstructorDashboard({ user, logout }) {
       // 3. Calculate Stats
       const publishedCourses = myCourses.filter(c => c.status === 'published');
       setStats({
-        courses: publishedCourses.length,
+        courses: myCourses.length, // Total courses (published + drafts)
+        published: publishedCourses.length,
         students: 0, // TODO: Implement student count from enrollments
         earnings: activeInstructor.earnings || 0
       });
@@ -136,7 +137,7 @@ export default function InstructorDashboard({ user, logout }) {
             <BookOpen className="stat-icon" />
             <div>
               <h3 data-testid="courses-count">{stats.courses}</h3>
-              <p>Published Courses</p>
+              <p>Total Courses</p>
             </div>
           </div>
           <div className="stat-card">

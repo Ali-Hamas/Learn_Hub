@@ -331,6 +331,12 @@ async def login(credentials: UserLogin):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     user = User(**{k: v for k, v in user_doc.items() if k != 'password'})
+    
+    # Ensure ID is persisted in DB if it was missing or mismatched
+    if "id" not in user_doc:
+        await db.users.update_one({"email": credentials.email}, {"$set": {"id": user.id}})
+        logger.info(f"Persisted new ID {user.id} for user {user.email}")
+        
     token = create_access_token({"sub": user.id, "role": user.role})
     return {"token": token, "user": user}
 
@@ -412,6 +418,14 @@ async def get_instructors(status: Optional[str] = None):
     if status:
         query['verification_status'] = status
     instructors = await db.instructors.find(query, {"_id": 0}).to_list(1000)
+    
+    # Ensure all instructors have stable IDs
+    for inst in instructors:
+        if "id" not in inst:
+            new_id = str(uuid.uuid4())
+            await db.instructors.update_one({"user_id": inst['user_id']}, {"$set": {"id": new_id}})
+            inst['id'] = new_id
+            
     return instructors
 
 
@@ -1643,17 +1657,12 @@ async def fix_my_account(email: str):
         
         # Check/Fix instructor
         instructor = await db.instructors.find_one({"user_id": uid})
-        if instructor:
-            await db.instructors.update_one(
-                {"id": instructor['id']},
-                {"$set": {"verification_status": "approved"}}
-            )
-            results.append("Instructor -> APPROVED")
-        else:
-            # Create instructor
+        if not instructor:
+            # Create a real instructor record
             results.append("Creating Instructor Profile")
+            new_id = str(uuid.uuid4())
             new_instructor = {
-                "id": str(uuid.uuid4()),
+                "id": new_id,
                 "user_id": uid,
                 "bio": "Auto-fixed",
                 "verification_status": "approved",
@@ -1661,12 +1670,39 @@ async def fix_my_account(email: str):
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
             await db.instructors.insert_one(new_instructor)
+            inst_id = new_id
+        else:
+            inst_id = instructor.get('id')
+            if not inst_id:
+                inst_id = str(uuid.uuid4())
+                await db.instructors.update_one({"user_id": uid}, {"$set": {"id": inst_id}})
+                results.append(f"Fixed missing ID for Instructor: {inst_id}")
+
+            await db.instructors.update_one(
+                {"user_id": uid},
+                {"$set": {"verification_status": "approved"}}
+            )
+            results.append("Instructor -> APPROVED")
+
+        # 3. Fix existing courses for this instructor if they have 'undefined' or missing ID
+        course_fix = await db.courses.update_many(
+            {"instructor_id": {"$in": [None, "undefined", "null", ""]}},
+            {"$set": {"instructor_id": inst_id}}
+        )
+        if course_fix.modified_count > 0:
+            results.append(f"Fixed {course_fix.modified_count} orphaned courses")
         
         return {"status": "Success", "details": results}
 
     except Exception as e:
         logger.error(f"Fix account failed: {e}")
         return {"status": "Error", "error": str(e)}
+
+@api_router.get("/debug/courses")
+async def debug_courses():
+    """Temporary diagnostic endpoint"""
+    courses = await db.courses.find({}, {"_id": 0}).to_list(100)
+    return courses
 
 @app.get("/payment/success")
 async def payment_success_redirect(session_id: str):
