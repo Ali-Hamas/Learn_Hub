@@ -30,6 +30,7 @@ class CheckoutStatusResponse:
     """Response for checkout status"""
     payment_status: str
     session_id: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class StripeCheckout:
@@ -77,7 +78,8 @@ class StripeCheckout:
             session = stripe.checkout.Session.retrieve(session_id)
             return CheckoutStatusResponse(
                 payment_status=session.payment_status,
-                session_id=session_id
+                session_id=session_id,
+                metadata=session.metadata
             )
         except Exception as e:
             raise Exception(f"Failed to get checkout status: {str(e)}")
