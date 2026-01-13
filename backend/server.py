@@ -920,8 +920,8 @@ async def create_checkout(
         webhook_url=webhook_url
     )
     
-    success_url = f"{frontend_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{frontend_url}/payment/cancel"
+    success_url = f"{host_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{host_url}/payment/cancel"
     
     checkout_request = CheckoutSessionRequest(
         amount=final_price,
