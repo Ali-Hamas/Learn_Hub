@@ -1,6 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -912,6 +912,7 @@ async def create_checkout(
                             coupon_id = coupon['id']
     
     host_url = str(request.base_url).rstrip('/')
+    frontend_url = os.environ.get('FRONTEND_URL', host_url).rstrip('/')
     webhook_url = f"{host_url}/api/webhook/stripe"
     
     stripe_checkout = StripeCheckout(
@@ -919,8 +920,8 @@ async def create_checkout(
         webhook_url=webhook_url
     )
     
-    success_url = f"{host_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{host_url}/payment/cancel"
+    success_url = f"{frontend_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{frontend_url}/payment/cancel"
     
     checkout_request = CheckoutSessionRequest(
         amount=final_price,
@@ -990,26 +991,34 @@ async def check_payment_status(session_id: str, current_user: User = Depends(get
     
     # Support both "paid" and "no_payment_required" (for 100% coupons)
     valid_statuses = ["paid", "no_payment_required"]
-    if status.payment_status in valid_statuses and payment['payment_status'] != 'paid':
-        await db.payments.update_one(
-            {"session_id": session_id},
-            {"$set": {"payment_status": "paid"}}
-        )
-        
-        # Create enrollment
-        enrollment = Enrollment(user_id=payment['user_id'], course_id=payment['course_id'])
-        enroll_doc = enrollment.model_dump()
-        enroll_doc['enrolled_at'] = enroll_doc['enrolled_at'].isoformat()
-        await db.enrollments.insert_one(enroll_doc)
-        
-        # Update instructor earnings
-        course = await db.courses.find_one({"id": payment['course_id']})
-        if course:
-            instructor_share = payment['amount'] * (1 - ADMIN_COMMISSION)
-            await db.instructors.update_one(
-                {"id": course['instructor_id']},
-                {"$inc": {"earnings": instructor_share}}
+    if status.payment_status in valid_statuses:
+        if payment['payment_status'] != 'paid':
+            await db.payments.update_one(
+                {"session_id": session_id},
+                {"$set": {"payment_status": "paid"}}
             )
+            
+            # Create enrollment
+            enrollment = Enrollment(user_id=payment['user_id'], course_id=payment['course_id'])
+            enroll_doc = enrollment.model_dump()
+            enroll_doc['enrolled_at'] = enroll_doc['enrolled_at'].isoformat()
+            await db.enrollments.insert_one(enroll_doc)
+            
+            # Update instructor earnings
+            course = await db.courses.find_one({"id": payment['course_id']})
+            if course:
+                instructor_share = payment['amount'] * (1 - ADMIN_COMMISSION)
+                await db.instructors.update_one(
+                    {"id": course['instructor_id']},
+                    {"$inc": {"earnings": instructor_share}}
+                )
+        
+        # Normalize status for frontend
+        status.payment_status = "paid"
+        
+    # Ensure metadata has the course_id from our database record if missing from Stripe
+    if not status.metadata.get('course_id') and payment:
+        status.metadata['course_id'] = payment.get('course_id')
     
     return status
 
@@ -1654,9 +1663,29 @@ async def fix_my_account(email: str):
             await db.instructors.insert_one(new_instructor)
         
         return {"status": "Success", "details": results}
+
     except Exception as e:
         logger.error(f"Fix account failed: {e}")
         return {"status": "Error", "error": str(e)}
+
+@app.get("/payment/success")
+async def payment_success_redirect(session_id: str):
+    """
+    Handle Stripe redirect to backend and forward to frontend.
+    This fixes the 404 error when FRONTEND_URL is not directly used in success_url.
+    """
+    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
+    logger.info(f"Redirecting success session {session_id} to {frontend_url}")
+    return RedirectResponse(url=f"{frontend_url}/payment/success?session_id={session_id}")
+
+
+@app.get("/payment/cancel")
+async def payment_cancel_redirect():
+    """Handle Stripe cancel redirect to backend and forward to frontend."""
+    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
+    logger.info(f"Redirecting cancellation to {frontend_url}")
+    return RedirectResponse(url=f"{frontend_url}/payment/cancel")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

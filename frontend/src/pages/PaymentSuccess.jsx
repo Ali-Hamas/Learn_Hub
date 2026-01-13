@@ -38,14 +38,26 @@ export default function PaymentSuccess({ user, logout }) {
         const response = await axios.get(`${API}/payments/status/${sessionId}`);
         const paymentData = response.data;
 
-        if (paymentData.payment_status === 'paid') {
+        console.log('Payment status response:', paymentData);
+
+        const isSuccess = paymentData.payment_status === 'paid' || paymentData.payment_status === 'no_payment_required';
+
+        if (isSuccess) {
           // Payment successful
           setStatus('success');
           const metadata = paymentData.metadata || {};
-          setCourseId(metadata.course_id);
+          const cid = metadata.course_id || paymentData.course_id;
+
+          if (cid && cid !== 'undefined') {
+            setCourseId(cid);
+          } else {
+            console.error('Course ID missing in payment success data');
+            // Try to find courseId from our enrollment if possible (optional fallback)
+          }
+
           toast.success('Payment successful! You are now enrolled in the course.');
           return true;
-        } else if (paymentData.status === 'expired') {
+        } else if (paymentData.payment_status === 'expired' || paymentData.status === 'expired') {
           // Payment expired
           setStatus('failed');
           toast.error('Payment session expired');
@@ -84,7 +96,7 @@ export default function PaymentSuccess({ user, logout }) {
   return (
     <div className="payment-success-page" data-testid="payment-success-page">
       <Navbar user={user} logout={logout} />
-      
+
       <div className="payment-container">
         {status === 'checking' && (
           <div className="payment-status checking" data-testid="payment-checking">
@@ -100,14 +112,21 @@ export default function PaymentSuccess({ user, logout }) {
             <h1>Payment Successful!</h1>
             <p>Congratulations! You are now enrolled in the course.</p>
             <div className="payment-actions">
-              <Button 
+              <Button
                 data-testid="start-learning-btn"
-                onClick={() => navigate(`/course/${courseId}/learn`)}
+                onClick={() => {
+                  if (courseId) {
+                    navigate(`/course/${courseId}/learn`);
+                  } else {
+                    navigate('/dashboard/student');
+                  }
+                }}
                 size="lg"
+                disabled={!courseId && status !== 'success'}
               >
                 Start Learning
               </Button>
-              <Button 
+              <Button
                 data-testid="view-dashboard-btn"
                 onClick={() => navigate('/dashboard/student')}
                 variant="outline"
@@ -125,7 +144,7 @@ export default function PaymentSuccess({ user, logout }) {
             <h1>Payment Verification Failed</h1>
             <p>We couldn't verify your payment. Please try again or contact support.</p>
             <div className="payment-actions">
-              <Button 
+              <Button
                 data-testid="back-to-courses-btn"
                 onClick={() => navigate('/courses')}
                 size="lg"

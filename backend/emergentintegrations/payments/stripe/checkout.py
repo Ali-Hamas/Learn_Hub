@@ -76,10 +76,12 @@ class StripeCheckout:
         """Get the status of a checkout session"""
         try:
             session = stripe.checkout.Session.retrieve(session_id)
+            # Ensure metadata is a standard dict
+            metadata = dict(session.metadata) if session.metadata else {}
             return CheckoutStatusResponse(
                 payment_status=session.payment_status,
                 session_id=session_id,
-                metadata=session.metadata
+                metadata=metadata
             )
         except Exception as e:
             raise Exception(f"Failed to get checkout status: {str(e)}")
