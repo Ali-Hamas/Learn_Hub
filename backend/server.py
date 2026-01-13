@@ -919,7 +919,8 @@ async def create_checkout(
         webhook_url=webhook_url
     )
     
-    success_url = f"{host_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
+# Change this to point to your REAL website, not the backend
+success_url = f"https://britsyncaiacademy.online/payment/success?session_id={{CHECKOUT_SESSION_ID}}"    
     cancel_url = f"{host_url}/payment/cancel"
     
     checkout_request = CheckoutSessionRequest(
