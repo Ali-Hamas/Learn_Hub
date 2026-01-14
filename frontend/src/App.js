@@ -96,7 +96,7 @@ function App() {
           <Route
             path="/dashboard/instructor"
             element={
-              <ProtectedRoute allowedRoles={["instructor", "admin"]}>
+              <ProtectedRoute allowedRoles={["student", "instructor", "admin"]}>
                 <InstructorDashboard user={user} logout={logout} />
               </ProtectedRoute>
             }

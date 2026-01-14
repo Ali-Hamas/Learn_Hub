@@ -28,17 +28,17 @@ export default function RegisterPage({ setUser }) {
     try {
       const response = await axios.post(`${API}/auth/register`, formData);
       const { token, user } = response.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
-      
+
       toast.success('Registration successful!');
-      
-      if (user.role === 'student') {
-        navigate('/dashboard/student');
-      } else {
+
+      if (formData.role === 'instructor') {
         navigate('/dashboard/instructor');
+      } else {
+        navigate('/dashboard/student');
       }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Registration failed');
@@ -64,7 +64,7 @@ export default function RegisterPage({ setUser }) {
               data-testid="name-input"
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="John Doe"
               required
             />
@@ -77,7 +77,7 @@ export default function RegisterPage({ setUser }) {
               data-testid="email-input"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="your@email.com"
               required
             />
@@ -90,7 +90,7 @@ export default function RegisterPage({ setUser }) {
               data-testid="password-input"
               type="password"
               value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               placeholder="Create a password"
               required
             />
@@ -98,9 +98,9 @@ export default function RegisterPage({ setUser }) {
 
           <div className="form-group">
             <Label htmlFor="role">I want to</Label>
-            <Select 
-              value={formData.role} 
-              onValueChange={(value) => setFormData({...formData, role: value})}
+            <Select
+              value={formData.role}
+              onValueChange={(value) => setFormData({ ...formData, role: value })}
             >
               <SelectTrigger data-testid="role-select">
                 <SelectValue />
@@ -112,10 +112,10 @@ export default function RegisterPage({ setUser }) {
             </Select>
           </div>
 
-          <Button 
+          <Button
             data-testid="register-submit-btn"
-            type="submit" 
-            className="w-full" 
+            type="submit"
+            className="w-full"
             disabled={loading}
           >
             {loading ? 'Creating account...' : 'Create Account'}

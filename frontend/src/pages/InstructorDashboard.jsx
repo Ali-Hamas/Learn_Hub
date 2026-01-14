@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar';
 import CreateCourseForm from '@/components/instructor/CreateCourseForm';
 import CoursesList from '@/components/instructor/CoursesList';
 import EarningsView from '@/components/instructor/EarningsView';
-import { Plus, BookOpen, DollarSign, Users } from 'lucide-react';
+import { Plus, BookOpen, DollarSign, Users, Clock, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -85,12 +85,18 @@ export default function InstructorDashboard({ user, logout }) {
 
   if (user?.role !== 'admin' && (!instructor || instructor.verification_status === 'pending')) {
     return (
-      <div data-testid="instructor-dashboard">
+      <div data-testid="instructor-dashboard" className="dashboard-page">
         <Navbar user={user} logout={logout} />
         <div className="dashboard-container">
-          <div className="pending-approval" data-testid="pending-approval">
-            <h1>Instructor Application Pending</h1>
-            <p>Your application is under review. You'll be notified once approved.</p>
+          <div className="pending-status-card" data-testid="pending-approval">
+            <Clock size={80} className="status-large-icon pending-icon" />
+            <h1>Application Under Review</h1>
+            <p>Your instructor account is currently being verified by our administrators. This usually takes 24-48 hours.</p>
+            <div className="pending-actions">
+              <Button onClick={() => navigate('/dashboard/student')}>
+                Switch to Student Dashboard
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -99,12 +105,18 @@ export default function InstructorDashboard({ user, logout }) {
 
   if (user?.role !== 'admin' && instructor.verification_status === 'rejected') {
     return (
-      <div data-testid="instructor-dashboard">
+      <div data-testid="instructor-dashboard" className="dashboard-page">
         <Navbar user={user} logout={logout} />
         <div className="dashboard-container">
-          <div className="rejected-status">
+          <div className="pending-status-card rejected" data-testid="status-rejected">
+            <AlertCircle size={80} className="status-large-icon rejected-icon" />
             <h1>Application Not Approved</h1>
-            <p>Unfortunately, your instructor application was not approved.</p>
+            <p>Unfortunately, we couldn't approve your instructor profile at this time.</p>
+            <div className="pending-actions">
+              <Button onClick={() => navigate('/dashboard/student')}>
+                Return to Student Dashboard
+              </Button>
+            </div>
           </div>
         </div>
       </div>
