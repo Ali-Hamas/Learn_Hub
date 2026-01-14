@@ -25,10 +25,13 @@ export default function BecomeInstructor({ user, logout }) {
   }, [user]);
 
   const checkExistingApplication = async () => {
+    const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/instructors`);
+      const response = await axios.get(`${API}/instructors`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const myInstructor = response.data.find(i => i.user_id === user.id);
-      
+
       if (myInstructor) {
         setAlreadyApplied(true);
         setApplicationStatus(myInstructor.verification_status);
@@ -40,7 +43,7 @@ export default function BecomeInstructor({ user, logout }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!user) {
       toast.error('Please login to apply');
       navigate('/login');
@@ -49,11 +52,13 @@ export default function BecomeInstructor({ user, logout }) {
 
     setLoading(true);
 
+    const token = localStorage.getItem('token');
     try {
       await axios.post(`${API}/instructors/apply`, null, {
-        params: { bio }
+        params: { bio },
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       toast.success('Application submitted! Wait for admin approval.');
       setAlreadyApplied(true);
       setApplicationStatus('pending');
@@ -93,7 +98,7 @@ export default function BecomeInstructor({ user, logout }) {
                 <p>You'll be notified via email once approved.</p>
               </div>
             )}
-            
+
             {applicationStatus === 'approved' && (
               <div className="status-card approved" data-testid="status-approved">
                 <CheckCircle size={64} className="status-icon" />
@@ -104,7 +109,7 @@ export default function BecomeInstructor({ user, logout }) {
                 </Button>
               </div>
             )}
-            
+
             {applicationStatus === 'rejected' && (
               <div className="status-card rejected" data-testid="status-rejected">
                 <h1>Application Not Approved</h1>
@@ -120,7 +125,7 @@ export default function BecomeInstructor({ user, logout }) {
   return (
     <div data-testid="become-instructor">
       <Navbar user={user} logout={logout} />
-      
+
       <div className="become-instructor-page">
         <div className="instructor-application-container">
           <div className="application-header">
@@ -153,7 +158,7 @@ export default function BecomeInstructor({ user, logout }) {
 
           <form onSubmit={handleSubmit} className="application-form" data-testid="instructor-application-form">
             <h2>Tell Us About Yourself</h2>
-            
+
             <div className="form-group">
               <Label htmlFor="bio">Your Teaching Background *</Label>
               <Textarea

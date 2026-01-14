@@ -8,12 +8,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Navbar from '@/components/Navbar';
 import QuizPlayer from '@/components/student/QuizPlayer';
 import LiveClassCard from '@/components/student/LiveClassCard';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  CheckCircle, 
-  Circle, 
-  MessageSquare, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle,
+  Circle,
+  MessageSquare,
   X,
   Send,
   BookOpen,
@@ -55,32 +55,35 @@ export default function CoursePlayer({ user, logout }) {
 
   const fetchCourseData = async () => {
     try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+
       const [courseRes, lessonsRes, quizzesRes, liveClassesRes, certificatesRes, enrollmentsRes] = await Promise.all([
-        axios.get(`${API}/courses/${id}`),
-        axios.get(`${API}/courses/${id}/lessons`),
-        axios.get(`${API}/quizzes/${id}`),
-        axios.get(`${API}/courses/${id}/live-classes`),
-        axios.get(`${API}/certificates/my-certificates`),
-        axios.get(`${API}/enrollments/my-courses`)
+        axios.get(`${API}/courses/${id}`, { headers }),
+        axios.get(`${API}/courses/${id}/lessons`, { headers }),
+        axios.get(`${API}/quizzes/${id}`, { headers }),
+        axios.get(`${API}/courses/${id}/live-classes`, { headers }),
+        axios.get(`${API}/certificates/my-certificates`, { headers }),
+        axios.get(`${API}/enrollments/my-courses`, { headers })
       ]);
-      
+
       setCourse(courseRes.data);
       setLessons(lessonsRes.data);
       setQuizzes(quizzesRes.data);
       setLiveClasses(liveClassesRes.data);
-      
+
       const myCertificates = certificatesRes.data.filter(c => c.course_id === id);
       setCertificates(myCertificates);
-      
+
       const currentEnrollment = enrollmentsRes.data.find(e => e.course_id === id);
       if (!currentEnrollment) {
         toast.error('You are not enrolled in this course');
         navigate(`/course/${id}`);
         return;
       }
-      
+
       setEnrollment(currentEnrollment);
-      
+
       // Load completed lessons from storage
       const saved = localStorage.getItem(`completed_lessons_${id}`);
       if (saved) {
@@ -98,30 +101,32 @@ export default function CoursePlayer({ user, logout }) {
 
   const markLessonComplete = async () => {
     if (!currentLesson) return;
-    
+
     const newCompleted = new Set(completedLessons);
     newCompleted.add(currentLesson.id);
     setCompletedLessons(newCompleted);
-    
+
     // Save to localStorage
     localStorage.setItem(`completed_lessons_${id}`, JSON.stringify([...newCompleted]));
-    
+
     // Calculate progress
     const progress = (newCompleted.size / lessons.length) * 100;
-    
+
+    const token = localStorage.getItem('token');
     // Update progress on backend
     try {
       await axios.patch(`${API}/enrollments/${enrollment.id}/progress`, null, {
-        params: { progress }
+        params: { progress },
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       toast.success('Lesson marked as complete!');
-      
+
       // If all lessons complete, show congratulations and fetch certificates
       if (progress >= 100) {
         toast.success('🎉 Congratulations! You completed the course!');
         toast.success('Your certificate is ready to download!');
-        
+
         // Refresh to get certificate
         setTimeout(() => {
           fetchCourseData();
@@ -153,15 +158,18 @@ export default function CoursePlayer({ user, logout }) {
 
   const askAITutor = async () => {
     if (!tutorInput.trim()) return;
-    
+
     const userMessage = { role: 'user', content: tutorInput };
     setTutorMessages([...tutorMessages, userMessage]);
     setTutorInput('');
     setTutorLoading(true);
-    
+
+    const token = localStorage.getItem('token');
     try {
-      const response = await axios.post(`${API}/ai/tutor?course_id=${id}&question=${encodeURIComponent(tutorInput)}`);
-      
+      const response = await axios.post(`${API}/ai/tutor?course_id=${id}&question=${encodeURIComponent(tutorInput)}`, null, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
       const aiMessage = { role: 'assistant', content: response.data.response };
       setTutorMessages([...tutorMessages, userMessage, aiMessage]);
     } catch (error) {
@@ -173,7 +181,7 @@ export default function CoursePlayer({ user, logout }) {
   };
 
   const getLessonIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'video': return <Video size={16} />;
       case 'pdf': return <FileText size={16} />;
       default: return <BookOpen size={16} />;
@@ -188,7 +196,7 @@ export default function CoursePlayer({ user, logout }) {
   return (
     <div className="course-player-page" data-testid="course-player">
       <Navbar user={user} logout={logout} />
-      
+
       <div className="player-container">
         {/* Sidebar - Lessons List */}
         <aside className="lessons-sidebar" data-testid="lessons-sidebar">
@@ -198,7 +206,7 @@ export default function CoursePlayer({ user, logout }) {
               <span>{completedLessons.size} / {lessons.length} completed</span>
               <Progress value={progressPercentage} className="mt-2" />
             </div>
-            
+
             {/* Certificate Badge */}
             {certificates.length > 0 && (
               <div className="certificate-earned" data-testid="certificate-earned">
@@ -216,7 +224,7 @@ export default function CoursePlayer({ user, logout }) {
               </div>
             )}
           </div>
-          
+
           {/* Sidebar Tabs */}
           <div className="sidebar-tabs">
             <button
@@ -244,40 +252,39 @@ export default function CoursePlayer({ user, logout }) {
               Live ({liveClasses.length})
             </button>
           </div>
-          
+
           <ScrollArea className="lessons-scroll">
             {currentView === 'lesson' && (
               <div className="lessons-list">
-              {lessons.map((lesson, index) => (
-                <div
-                  key={lesson.id}
-                  data-testid={`lesson-item-${lesson.id}`}
-                  className={`lesson-item ${
-                    index === currentLessonIndex ? 'active' : ''
-                  } ${completedLessons.has(lesson.id) ? 'completed' : ''}`}
-                  onClick={() => setCurrentLessonIndex(index)}
-                >
-                  <div className="lesson-status">
-                    {completedLessons.has(lesson.id) ? (
-                      <CheckCircle className="icon-completed" size={20} />
-                    ) : (
-                      <Circle className="icon-pending" size={20} />
-                    )}
-                  </div>
-                  <div className="lesson-info">
-                    <div className="lesson-number">Lesson {index + 1}</div>
-                    <div className="lesson-title">{lesson.title}</div>
-                    <div className="lesson-meta">
-                      {getLessonIcon(lesson.type)}
-                      <span>{lesson.type}</span>
-                      {lesson.duration && <span>{lesson.duration} min</span>}
+                {lessons.map((lesson, index) => (
+                  <div
+                    key={lesson.id}
+                    data-testid={`lesson-item-${lesson.id}`}
+                    className={`lesson-item ${index === currentLessonIndex ? 'active' : ''
+                      } ${completedLessons.has(lesson.id) ? 'completed' : ''}`}
+                    onClick={() => setCurrentLessonIndex(index)}
+                  >
+                    <div className="lesson-status">
+                      {completedLessons.has(lesson.id) ? (
+                        <CheckCircle className="icon-completed" size={20} />
+                      ) : (
+                        <Circle className="icon-pending" size={20} />
+                      )}
+                    </div>
+                    <div className="lesson-info">
+                      <div className="lesson-number">Lesson {index + 1}</div>
+                      <div className="lesson-title">{lesson.title}</div>
+                      <div className="lesson-meta">
+                        {getLessonIcon(lesson.type)}
+                        <span>{lesson.type}</span>
+                        {lesson.duration && <span>{lesson.duration} min</span>}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
             )}
-            
+
             {currentView === 'quiz' && (
               <div className="quizzes-list">
                 {quizzes.length === 0 ? (
@@ -303,7 +310,7 @@ export default function CoursePlayer({ user, logout }) {
                 )}
               </div>
             )}
-            
+
             {currentView === 'live-classes' && (
               <div className="live-classes-list-sidebar">
                 {liveClasses.length === 0 ? (
@@ -384,90 +391,90 @@ export default function CoursePlayer({ user, logout }) {
 
               {/* Lesson Content */}
               <div className="lesson-content" data-testid="lesson-content">
-            {currentLesson?.type === 'video' && (
-              <div className="video-container">
-                {currentLesson.content_url ? (
-                  currentLesson.content_url.includes('youtube.com') || currentLesson.content_url.includes('youtu.be') ? (
-                    <iframe
-                      src={currentLesson.content_url.replace('watch?v=', 'embed/')}
-                      title={currentLesson.title}
-                      allowFullScreen
-                      className="video-iframe"
-                    />
-                  ) : currentLesson.content_url.includes('vimeo.com') ? (
-                    <iframe
-                      src={currentLesson.content_url.replace('vimeo.com/', 'player.vimeo.com/video/')}
-                      title={currentLesson.title}
-                      allowFullScreen
-                      className="video-iframe"
-                    />
-                  ) : (
-                    <video controls className="video-player">
-                      <source src={currentLesson.content_url} />
-                    </video>
-                  )
-                ) : (
-                  <div className="placeholder">Video content will be available soon</div>
+                {currentLesson?.type === 'video' && (
+                  <div className="video-container">
+                    {currentLesson.content_url ? (
+                      currentLesson.content_url.includes('youtube.com') || currentLesson.content_url.includes('youtu.be') ? (
+                        <iframe
+                          src={currentLesson.content_url.replace('watch?v=', 'embed/')}
+                          title={currentLesson.title}
+                          allowFullScreen
+                          className="video-iframe"
+                        />
+                      ) : currentLesson.content_url.includes('vimeo.com') ? (
+                        <iframe
+                          src={currentLesson.content_url.replace('vimeo.com/', 'player.vimeo.com/video/')}
+                          title={currentLesson.title}
+                          allowFullScreen
+                          className="video-iframe"
+                        />
+                      ) : (
+                        <video controls className="video-player">
+                          <source src={currentLesson.content_url} />
+                        </video>
+                      )
+                    ) : (
+                      <div className="placeholder">Video content will be available soon</div>
+                    )}
+                  </div>
+                )}
+
+                {currentLesson?.type === 'pdf' && (
+                  <div className="pdf-container">
+                    {currentLesson.content_url ? (
+                      <iframe
+                        src={currentLesson.content_url}
+                        title={currentLesson.title}
+                        className="pdf-iframe"
+                      />
+                    ) : (
+                      <div className="placeholder">PDF content will be available soon</div>
+                    )}
+                  </div>
+                )}
+
+                {currentLesson?.type === 'text' && (
+                  <div className="text-container">
+                    {currentLesson.content_text ? (
+                      <div className="text-content" dangerouslySetInnerHTML={{ __html: currentLesson.content_text }} />
+                    ) : (
+                      <div className="placeholder">Text content will be available soon</div>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
 
-            {currentLesson?.type === 'pdf' && (
-              <div className="pdf-container">
-                {currentLesson.content_url ? (
-                  <iframe
-                    src={currentLesson.content_url}
-                    title={currentLesson.title}
-                    className="pdf-iframe"
-                  />
-                ) : (
-                  <div className="placeholder">PDF content will be available soon</div>
+              {/* Lesson Actions */}
+              <div className="lesson-actions">
+                <Button
+                  data-testid="previous-lesson-btn"
+                  onClick={goToPreviousLesson}
+                  disabled={currentLessonIndex === 0}
+                  variant="outline"
+                >
+                  <ChevronLeft size={18} />
+                  Previous
+                </Button>
+
+                {!completedLessons.has(currentLesson?.id) && (
+                  <Button
+                    data-testid="mark-complete-btn"
+                    onClick={markLessonComplete}
+                  >
+                    <CheckCircle size={18} className="mr-2" />
+                    Mark as Complete
+                  </Button>
                 )}
+
+                <Button
+                  data-testid="next-lesson-btn"
+                  onClick={goToNextLesson}
+                  disabled={currentLessonIndex === lessons.length - 1}
+                >
+                  Next
+                  <ChevronRight size={18} />
+                </Button>
               </div>
-            )}
-
-            {currentLesson?.type === 'text' && (
-              <div className="text-container">
-                {currentLesson.content_text ? (
-                  <div className="text-content" dangerouslySetInnerHTML={{ __html: currentLesson.content_text }} />
-                ) : (
-                  <div className="placeholder">Text content will be available soon</div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Lesson Actions */}
-          <div className="lesson-actions">
-            <Button
-              data-testid="previous-lesson-btn"
-              onClick={goToPreviousLesson}
-              disabled={currentLessonIndex === 0}
-              variant="outline"
-            >
-              <ChevronLeft size={18} />
-              Previous
-            </Button>
-
-            {!completedLessons.has(currentLesson?.id) && (
-              <Button
-                data-testid="mark-complete-btn"
-                onClick={markLessonComplete}
-              >
-                <CheckCircle size={18} className="mr-2" />
-                Mark as Complete
-              </Button>
-            )}
-
-            <Button
-              data-testid="next-lesson-btn"
-              onClick={goToNextLesson}
-              disabled={currentLessonIndex === lessons.length - 1}
-            >
-              Next
-              <ChevronRight size={18} />
-            </Button>
-          </div>
             </>
           )}
         </main>

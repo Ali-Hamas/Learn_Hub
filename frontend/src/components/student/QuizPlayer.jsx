@@ -45,18 +45,21 @@ export default function QuizPlayer({ quiz, onComplete }) {
 
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const answers = quiz.questions.map((_, i) => selectedAnswers[i]);
-      const response = await axios.post(`${API}/quizzes/${quiz.id}/submit`, answers);
-      
+      const response = await axios.post(`${API}/quizzes/${quiz.id}/submit`, answers, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
       setResult(response.data);
       setSubmitted(true);
-      
+
       if (response.data.score >= 70) {
         toast.success(`Great job! You scored ${response.data.score}%`);
       } else {
         toast.info(`You scored ${response.data.score}%. Keep practicing!`);
       }
-      
+
       if (onComplete) {
         onComplete(response.data.score);
       }
@@ -84,7 +87,7 @@ export default function QuizPlayer({ quiz, onComplete }) {
             <p>You got {result.correct} out of {result.total} questions correct</p>
           </div>
         </div>
-        
+
         {result.score < 70 && (
           <p className="retry-message">Keep learning and try again to improve your score!</p>
         )}
@@ -112,9 +115,8 @@ export default function QuizPlayer({ quiz, onComplete }) {
             <button
               key={index}
               data-testid={`answer-option-${index}`}
-              className={`answer-option ${
-                selectedAnswers[currentQuestion] === index ? 'selected' : ''
-              }`}
+              className={`answer-option ${selectedAnswers[currentQuestion] === index ? 'selected' : ''
+                }`}
               onClick={() => handleSelectAnswer(currentQuestion, index)}
               disabled={submitted}
             >
@@ -139,9 +141,8 @@ export default function QuizPlayer({ quiz, onComplete }) {
           {quiz.questions.map((_, index) => (
             <button
               key={index}
-              className={`question-indicator ${
-                index === currentQuestion ? 'active' : ''
-              } ${selectedAnswers[index] !== undefined ? 'answered' : ''}`}
+              className={`question-indicator ${index === currentQuestion ? 'active' : ''
+                } ${selectedAnswers[index] !== undefined ? 'answered' : ''}`}
               onClick={() => setCurrentQuestion(index)}
               data-testid={`question-indicator-${index}`}
             >

@@ -25,9 +25,11 @@ export default function PlatformAnalytics() {
         axios.get(`${API}/admin/analytics`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get(`${API}/courses`)
+        axios.get(`${API}/courses`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
       ]);
-      
+
       setAnalytics(analyticsRes.data);
       setCourses(coursesRes.data);
     } catch (error) {

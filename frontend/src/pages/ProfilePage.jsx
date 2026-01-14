@@ -40,8 +40,11 @@ export default function ProfilePage({ user, logout }) {
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setLoading(true);
+    const token = localStorage.getItem('token');
     try {
-      await axios.patch(`${API}/users/profile`, profileData);
+      await axios.patch(`${API}/users/profile`, profileData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
       // Update local storage user data
       const updatedUser = { ...user, ...profileData };
@@ -63,12 +66,14 @@ export default function ProfilePage({ user, logout }) {
     }
 
     setLoading(true);
+    const token = localStorage.getItem('token');
     try {
       await axios.patch(`${API}/users/profile/password`, {
         old_password: passwordData.old_password,
         new_password: passwordData.new_password
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-
       toast.success('Password updated successfully!');
       setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
     } catch (error) {

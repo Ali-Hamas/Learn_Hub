@@ -29,10 +29,13 @@ export default function CourseDetail({ user, logout }) {
   }, [id, user]);
 
   const fetchCourse = async () => {
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
     try {
       const [courseRes, lessonsRes] = await Promise.all([
-        axios.get(`${API}/courses/${id}`),
-        axios.get(`${API}/courses/${id}/lessons`)
+        axios.get(`${API}/courses/${id}`, { headers }),
+        axios.get(`${API}/courses/${id}/lessons`, { headers })
       ]);
       setCourse(courseRes.data);
       setLessons(lessonsRes.data);
@@ -44,8 +47,11 @@ export default function CourseDetail({ user, logout }) {
   };
 
   const checkEnrollment = async () => {
+    const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/enrollments/my-courses`);
+      const response = await axios.get(`${API}/enrollments/my-courses`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const enrolled = response.data.some(e => e.course_id === id);
       setIsEnrolled(enrolled);
     } catch (error) {
@@ -64,9 +70,12 @@ export default function CourseDetail({ user, logout }) {
       return;
     }
 
+    const token = localStorage.getItem('token');
     setValidatingCoupon(true);
     try {
-      const response = await axios.post(`${API}/coupons/validate?code=${couponCode}&course_id=${id}`);
+      const response = await axios.post(`${API}/coupons/validate?code=${couponCode}&course_id=${id}`, null, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setAppliedCoupon(response.data);
       toast.success('Coupon applied successfully!');
     } catch (error) {
@@ -90,13 +99,16 @@ export default function CourseDetail({ user, logout }) {
       return;
     }
 
+    const token = localStorage.getItem('token');
     setEnrolling(true);
     try {
       const url = appliedCoupon
         ? `${API}/payments/checkout?course_id=${id}&coupon_code=${couponCode}`
         : `${API}/payments/checkout?course_id=${id}`;
 
-      const response = await axios.post(url);
+      const response = await axios.post(url, null, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       window.location.href = response.data.url;
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to start checkout');

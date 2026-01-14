@@ -58,7 +58,10 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
     try {
       const prompt = `Generate a compelling course description for a course titled "${formData.title}" in the ${formData.category} category. Make it professional, engaging, and highlight key learning outcomes. Keep it to 2-3 sentences.`;
 
-      const response = await axios.post(`${API}/ai/course-assistant?prompt=${encodeURIComponent(prompt)}`);
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API}/ai/course-assistant?prompt=${encodeURIComponent(prompt)}`, null, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
       setFormData(prev => ({
         ...prev,

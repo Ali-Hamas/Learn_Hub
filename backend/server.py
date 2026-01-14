@@ -281,6 +281,40 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+async def get_optional_user(request: Request):
+    try:
+        auth_header = request.headers.get("Authorization")
+        token = None
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+        
+        if not token:
+            token = request.query_params.get("token")
+            
+        if not token:
+            return None
+            
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+        user_doc = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+        if not user_doc:
+            return None
+        return User(**user_doc)
+    except Exception:
+        return None
+
+
+async def check_enrollment_status(user_id: str, course_id: str) -> bool:
+    enrollment = await db.enrollments.find_one({
+        "user_id": user_id, 
+        "course_id": course_id,
+        "status": {"$in": ["active", "completed"]}
+    })
+    return enrollment is not None
+
+
 async def send_email(to: str, subject: str, content: str):
     try:
         message = Mail(
@@ -498,24 +532,23 @@ async def create_course(course_data: dict, current_user: User = Depends(get_curr
 
 @api_router.get("/courses")
 async def get_courses(
+    request: Request,
     category: Optional[str] = None,
     status: Optional[str] = "published",
     search: Optional[str] = None,
     instructor_id: Optional[str] = None,
     token: Optional[str] = None
 ):
-    # Try to get user if token provided, but don't fail if not
-    current_user = None
-    if token:
+    current_user = await get_optional_user(request)
+    if not current_user and token:
+        # Fallback for explicit token param if get_optional_user missed it
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
             user_id = payload.get("sub")
             user_doc = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
             if user_doc:
                 current_user = User(**user_doc)
-                logger.info(f"get_courses: Identified user {current_user.email} via token")
-        except Exception as e:
-            logger.error(f"get_courses: Token decode failed: {str(e)}")
+        except:
             pass
 
     query = {}
@@ -653,8 +686,31 @@ async def add_lesson(course_id: str, lesson_data: dict, current_user: User = Dep
 
 
 @api_router.get("/courses/{course_id}/lessons")
-async def get_lessons(course_id: str):
+async def get_lessons(course_id: str, request: Request):
     lessons = await db.lessons.find({"course_id": course_id}, {"_id": 0}).sort("order", 1).to_list(1000)
+    
+    current_user = await get_optional_user(request)
+    is_authorized = False
+    
+    if current_user:
+        if current_user.role == "admin":
+            is_authorized = True
+        else:
+            course = await db.courses.find_one({"id": course_id})
+            if course:
+                instructor = await db.instructors.find_one({"user_id": current_user.id})
+                if instructor and instructor['id'] == course.get('instructor_id'):
+                    is_authorized = True
+            
+            if not is_authorized:
+                is_authorized = await check_enrollment_status(current_user.id, course_id)
+                
+    # Filter content for non-enrolled users
+    for lesson in lessons:
+        if not is_authorized and not lesson.get('is_preview', False):
+            lesson['content_url'] = None
+            lesson['content_text'] = "Private content. Enroll to view."
+            
     return lessons
 
 
@@ -708,12 +764,35 @@ async def create_section(course_id: str, section_data: dict, current_user: User 
 
 
 @api_router.get("/courses/{course_id}/sections")
-async def get_sections(course_id: str):
+async def get_sections(course_id: str, request: Request):
     sections = await db.sections.find({"course_id": course_id}, {"_id": 0}).sort("order", 1).to_list(1000)
+    
+    current_user = await get_optional_user(request)
+    is_authorized = False
+    
+    if current_user:
+        if current_user.role == "admin":
+            is_authorized = True
+        else:
+            course = await db.courses.find_one({"id": course_id})
+            if course:
+                instructor = await db.instructors.find_one({"user_id": current_user.id})
+                if instructor and instructor['id'] == course.get('instructor_id'):
+                    is_authorized = True
+            
+            if not is_authorized:
+                is_authorized = await check_enrollment_status(current_user.id, course_id)
     
     # Get lessons for each section
     for section in sections:
         lessons = await db.lessons.find({"section_id": section['id']}, {"_id": 0}).sort("order", 1).to_list(1000)
+        # Filter content for non-enrolled users
+        for lesson in lessons:
+            if not is_authorized and not lesson.get('is_preview', False):
+                lesson['content_url'] = None
+                lesson['content_text'] = "Private content. Enroll to view."
+                if lesson.get('type') == 'video':
+                    lesson['duration'] = 0 # Hide duration if preferred
         section['lessons'] = lessons
     
     return sections
@@ -787,8 +866,31 @@ async def create_live_class(course_id: str, live_class_data: dict, current_user:
 
 
 @api_router.get("/courses/{course_id}/live-classes")
-async def get_live_classes(course_id: str):
+async def get_live_classes(course_id: str, request: Request):
+    current_user = await get_optional_user(request)
+    is_authorized = False
+    
+    if current_user:
+        if current_user.role == "admin":
+            is_authorized = True
+        else:
+            course = await db.courses.find_one({"id": course_id})
+            if course:
+                instructor = await db.instructors.find_one({"user_id": current_user.id})
+                if instructor and instructor['id'] == course.get('instructor_id'):
+                    is_authorized = True
+            
+            if not is_authorized:
+                is_authorized = await check_enrollment_status(current_user.id, course_id)
+                
     live_classes = await db.live_classes.find({"course_id": course_id}, {"_id": 0}).sort("scheduled_at", 1).to_list(1000)
+    
+    # Hide meeting URLs for non-enrolled users
+    if not is_authorized:
+        for lc in live_classes:
+            lc['meeting_url'] = None
+            lc['description'] = "Enroll to access the meeting link and details."
+            
     return live_classes
 
 
@@ -841,10 +943,18 @@ async def delete_live_class(live_class_id: str, current_user: User = Depends(get
 # ==================== ENROLLMENT ROUTES ====================
 @api_router.post("/enrollments")
 async def create_enrollment(course_id: str, current_user: User = Depends(get_current_user)):
+    course = await db.courses.find_one({"id": course_id})
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+        
     existing = await db.enrollments.find_one({"user_id": current_user.id, "course_id": course_id})
     if existing:
         raise HTTPException(status_code=400, detail="Already enrolled")
     
+    # Only allow direct enrollment if course is free
+    if course.get('price', 0) > 0:
+        raise HTTPException(status_code=400, detail="Premium course. Please purchase to enroll.")
+        
     enrollment = Enrollment(user_id=current_user.id, course_id=course_id)
     doc = enrollment.model_dump()
     doc['enrolled_at'] = doc['enrolled_at'].isoformat()
@@ -1455,7 +1565,26 @@ async def create_quiz(quiz_data: dict, current_user: User = Depends(get_current_
 
 
 @api_router.get("/quizzes/{course_id}")
-async def get_quizzes(course_id: str):
+async def get_quizzes(course_id: str, request: Request):
+    current_user = await get_optional_user(request)
+    is_authorized = False
+    
+    if current_user:
+        if current_user.role == "admin":
+            is_authorized = True
+        else:
+            course = await db.courses.find_one({"id": course_id})
+            if course:
+                instructor = await db.instructors.find_one({"user_id": current_user.id})
+                if instructor and instructor['id'] == course.get('instructor_id'):
+                    is_authorized = True
+            
+            if not is_authorized:
+                is_authorized = await check_enrollment_status(current_user.id, course_id)
+                
+    if not is_authorized:
+        raise HTTPException(status_code=403, detail="Enrollment required to access quizzes")
+
     quizzes = await db.quizzes.find({"course_id": course_id}, {"_id": 0}).to_list(1000)
     return quizzes
 

@@ -28,8 +28,11 @@ export default function CouponManager() {
   }, []);
 
   const fetchCoupons = async () => {
+    const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/coupons`);
+      const response = await axios.get(`${API}/coupons`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setCoupons(response.data);
     } catch (error) {
       toast.error('Failed to load coupons');
@@ -40,14 +43,17 @@ export default function CouponManager() {
 
   const handleCreateCoupon = async (e) => {
     e.preventDefault();
-    
+
+    const token = localStorage.getItem('token');
     try {
       await axios.post(`${API}/coupons`, {
         ...formData,
         discount_value: parseFloat(formData.discount_value),
         usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       toast.success('Coupon created successfully!');
       setShowForm(false);
       setFormData({
@@ -66,9 +72,12 @@ export default function CouponManager() {
 
   const handleDeleteCoupon = async (couponId) => {
     if (!window.confirm('Are you sure you want to delete this coupon?')) return;
-    
+
+    const token = localStorage.getItem('token');
     try {
-      await axios.delete(`${API}/coupons/${couponId}`);
+      await axios.delete(`${API}/coupons/${couponId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       toast.success('Coupon deleted');
       fetchCoupons();
     } catch (error) {
@@ -77,9 +86,12 @@ export default function CouponManager() {
   };
 
   const toggleCouponStatus = async (couponId, currentStatus) => {
+    const token = localStorage.getItem('token');
     try {
       await axios.patch(`${API}/coupons/${couponId}`, {
         is_active: !currentStatus
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       toast.success(`Coupon ${!currentStatus ? 'activated' : 'deactivated'}`);
       fetchCoupons();
@@ -92,7 +104,7 @@ export default function CouponManager() {
     <div className="coupon-manager" data-testid="coupon-manager">
       <div className="coupon-header">
         <h2>Manage Coupons</h2>
-        <Button 
+        <Button
           data-testid="create-coupon-btn"
           onClick={() => setShowForm(!showForm)}
         >
@@ -110,7 +122,7 @@ export default function CouponManager() {
                 id="code"
                 data-testid="coupon-code-input"
                 value={formData.code}
-                onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                 placeholder="SUMMER2024"
                 required
               />
@@ -118,9 +130,9 @@ export default function CouponManager() {
 
             <div className="form-group">
               <Label htmlFor="discount_type">Discount Type *</Label>
-              <Select 
+              <Select
                 value={formData.discount_type}
-                onValueChange={(value) => setFormData({...formData, discount_type: value})}
+                onValueChange={(value) => setFormData({ ...formData, discount_type: value })}
               >
                 <SelectTrigger data-testid="discount-type-select">
                   <SelectValue />
@@ -144,7 +156,7 @@ export default function CouponManager() {
                 min="0"
                 max={formData.discount_type === 'percentage' ? '100' : undefined}
                 value={formData.discount_value}
-                onChange={(e) => setFormData({...formData, discount_value: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, discount_value: e.target.value })}
                 required
               />
             </div>
@@ -157,7 +169,7 @@ export default function CouponManager() {
                 type="number"
                 min="1"
                 value={formData.usage_limit}
-                onChange={(e) => setFormData({...formData, usage_limit: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, usage_limit: e.target.value })}
                 placeholder="Unlimited"
               />
             </div>
@@ -169,7 +181,7 @@ export default function CouponManager() {
                 data-testid="valid-from-input"
                 type="datetime-local"
                 value={formData.valid_from}
-                onChange={(e) => setFormData({...formData, valid_from: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, valid_from: e.target.value })}
                 required
               />
             </div>
@@ -181,7 +193,7 @@ export default function CouponManager() {
                 data-testid="valid-until-input"
                 type="datetime-local"
                 value={formData.valid_until}
-                onChange={(e) => setFormData({...formData, valid_until: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
                 required
               />
             </div>
@@ -221,7 +233,7 @@ export default function CouponManager() {
                   <tr key={coupon.id} data-testid={`coupon-row-${coupon.id}`}>
                     <td className="coupon-code">{coupon.code}</td>
                     <td>
-                      {coupon.discount_type === 'percentage' 
+                      {coupon.discount_type === 'percentage'
                         ? `${coupon.discount_value}%`
                         : `$${coupon.discount_value}`}
                     </td>

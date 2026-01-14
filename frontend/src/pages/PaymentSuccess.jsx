@@ -35,7 +35,10 @@ export default function PaymentSuccess({ user, logout }) {
         currentAttempt++;
         setAttempts(currentAttempt);
 
-        const response = await axios.get(`${API}/payments/status/${sessionId}`);
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API}/payments/status/${sessionId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const paymentData = response.data;
 
         console.log('Payment status response:', paymentData);

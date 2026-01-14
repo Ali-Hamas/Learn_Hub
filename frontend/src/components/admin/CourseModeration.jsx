@@ -24,7 +24,9 @@ export default function CourseModeration() {
         axios.get(`${API}/admin/courses/pending`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get(`${API}/courses`)
+        axios.get(`${API}/courses`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
       ]);
 
       setCourses(pendingRes.data);
