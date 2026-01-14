@@ -41,12 +41,15 @@ export default function AddQuizForm({ courseId, onClose, onSuccess }) {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem('token');
       await axios.post(`${API}/quizzes`, {
         course_id: courseId,
         title,
         questions
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       toast.success('Quiz added successfully!');
       onSuccess();
     } catch (error) {
@@ -66,7 +69,7 @@ export default function AddQuizForm({ courseId, onClose, onSuccess }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="quiz-form" style={{padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto'}}>
+        <form onSubmit={handleSubmit} className="quiz-form" style={{ padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
           <div className="form-group">
             <Label htmlFor="title">Quiz Title *</Label>
             <Input

@@ -31,11 +31,14 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem('token');
       await axios.post(`${API}/courses`, {
         ...formData,
         price: parseFloat(formData.price)
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       toast.success('Course created successfully!');
       onSuccess();
     } catch (error) {
@@ -54,14 +57,14 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
     setAiGenerating(true);
     try {
       const prompt = `Generate a compelling course description for a course titled "${formData.title}" in the ${formData.category} category. Make it professional, engaging, and highlight key learning outcomes. Keep it to 2-3 sentences.`;
-      
+
       const response = await axios.post(`${API}/ai/course-assistant?prompt=${encodeURIComponent(prompt)}`);
-      
+
       setFormData(prev => ({
         ...prev,
         description: response.data.response
       }));
-      
+
       toast.success('AI description generated!');
     } catch (error) {
       toast.error('Failed to generate description');
@@ -87,7 +90,7 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
               id="title"
               data-testid="course-title-input"
               value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="Complete Python Programming"
               required
             />
@@ -112,7 +115,7 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
               id="description"
               data-testid="course-description-input"
               value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Learn Python from scratch to advanced..."
               rows={4}
               required
@@ -122,9 +125,9 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
           <div className="form-grid">
             <div className="form-group">
               <Label htmlFor="category">Category *</Label>
-              <Select 
+              <Select
                 value={formData.category}
-                onValueChange={(value) => setFormData({...formData, category: value})}
+                onValueChange={(value) => setFormData({ ...formData, category: value })}
               >
                 <SelectTrigger data-testid="category-select">
                   <SelectValue />
@@ -146,7 +149,7 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
                 step="0.01"
                 min="0"
                 value={formData.price}
-                onChange={(e) => setFormData({...formData, price: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                 placeholder="49.99"
                 required
               />
@@ -159,7 +162,7 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
               id="thumbnail"
               data-testid="thumbnail-input"
               value={formData.thumbnail}
-              onChange={(e) => setFormData({...formData, thumbnail: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, thumbnail: e.target.value })}
               placeholder="https://example.com/image.jpg"
             />
           </div>
@@ -167,9 +170,9 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
           <div className="form-grid">
             <div className="form-group">
               <Label htmlFor="video_platform">Video Platform</Label>
-              <Select 
+              <Select
                 value={formData.video_platform}
-                onValueChange={(value) => setFormData({...formData, video_platform: value})}
+                onValueChange={(value) => setFormData({ ...formData, video_platform: value })}
               >
                 <SelectTrigger data-testid="platform-select">
                   <SelectValue />
@@ -187,7 +190,7 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
                 id="preview_video"
                 data-testid="preview-video-input"
                 value={formData.preview_video}
-                onChange={(e) => setFormData({...formData, preview_video: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, preview_video: e.target.value })}
                 placeholder="https://youtube.com/watch?v=..."
               />
             </div>

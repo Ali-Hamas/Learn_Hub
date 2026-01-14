@@ -23,11 +23,14 @@ export default function AddSectionForm({ courseId, onClose, onSuccess }) {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem('token');
       await axios.post(`${API}/courses/${courseId}/sections`, {
         ...formData,
         order: parseInt(formData.order)
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       toast.success('Section added successfully!');
       onSuccess();
     } catch (error) {
@@ -47,14 +50,14 @@ export default function AddSectionForm({ courseId, onClose, onSuccess }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="section-form" style={{padding: '1.5rem'}}>
+        <form onSubmit={handleSubmit} className="section-form" style={{ padding: '1.5rem' }}>
           <div className="form-group">
             <Label htmlFor="title">Section Title *</Label>
             <Input
               id="title"
               data-testid="section-title-input"
               value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="e.g., Getting Started, Advanced Concepts"
               required
             />
@@ -66,7 +69,7 @@ export default function AddSectionForm({ courseId, onClose, onSuccess }) {
               id="description"
               data-testid="section-description-input"
               value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Brief description of this section..."
               rows={3}
             />
@@ -80,7 +83,7 @@ export default function AddSectionForm({ courseId, onClose, onSuccess }) {
               type="number"
               min="1"
               value={formData.order}
-              onChange={(e) => setFormData({...formData, order: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, order: e.target.value })}
               required
             />
           </div>

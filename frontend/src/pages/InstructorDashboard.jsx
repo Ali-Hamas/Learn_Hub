@@ -30,23 +30,23 @@ export default function InstructorDashboard({ user, logout }) {
   const fetchInstructorData = async () => {
     try {
       let activeInstructor = null;
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
 
       // 1. Get/Set Instructor Profile
-      if (user?.role === 'admin') {
-        const instructorsRes = await axios.get(`${API}/instructors`);
-        activeInstructor = instructorsRes.data.find(i => i.user_id === user.id);
+      const instructorsRes = await axios.get(`${API}/instructors`, { headers });
+      activeInstructor = instructorsRes.data.find(i => i.user_id === user.id);
 
+      if (user?.role === 'admin') {
         if (!activeInstructor) {
           // Virtual instructor for admin if no record exists
           activeInstructor = { id: `admin-inst-${user.id}`, verification_status: 'approved', earnings: 0 };
         }
       } else {
         // Regular instructor
-        const instructorsRes = await axios.get(`${API}/instructors`);
-        activeInstructor = instructorsRes.data.find(i => i.user_id === user.id);
-
         if (!activeInstructor) {
-          // Stay in loading state if no record exists yet (should be rare due to auto-create)
+          // If no instructor record exists, prompt them to apply or handle gracefully
+          console.warn("No instructor profile found for user:", user.id);
           setLoading(false);
           return;
         }
@@ -55,8 +55,7 @@ export default function InstructorDashboard({ user, logout }) {
       setInstructor(activeInstructor);
 
       // 2. Fetch Courses for this instructor (any status)
-      const token = localStorage.getItem('token');
-      const coursesRes = await axios.get(`${API}/courses?instructor_id=${activeInstructor.id}&status=all&token=${token}`);
+      const coursesRes = await axios.get(`${API}/courses?instructor_id=${activeInstructor.id}&status=all&token=${token}`, { headers });
       const myCourses = coursesRes.data;
       setCourses(myCourses);
 

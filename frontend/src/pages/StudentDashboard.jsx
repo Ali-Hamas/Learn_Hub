@@ -24,9 +24,11 @@ export default function StudentDashboard({ user, logout }) {
 
   const fetchData = async () => {
     try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
       const [enrollmentsRes, certificatesRes] = await Promise.all([
-        axios.get(`${API}/enrollments/my-courses`),
-        axios.get(`${API}/certificates/my-certificates`)
+        axios.get(`${API}/enrollments/my-courses`, { headers }),
+        axios.get(`${API}/certificates/my-certificates`, { headers })
       ]);
       setEnrollments(enrollmentsRes.data);
       setCertificates(certificatesRes.data);
@@ -43,14 +45,14 @@ export default function StudentDashboard({ user, logout }) {
   return (
     <div className="dashboard-page" data-testid="student-dashboard">
       <Navbar user={user} logout={logout} />
-      
+
       <div className="dashboard-container">
         <div className="dashboard-header">
           <div>
             <h1 data-testid="dashboard-title">Welcome back, {user?.name}!</h1>
             <p>Continue your learning journey</p>
           </div>
-          <Button 
+          <Button
             data-testid="browse-courses-btn"
             onClick={() => navigate('/courses')}
           >
@@ -116,7 +118,7 @@ export default function StudentDashboard({ user, logout }) {
                         </div>
                         <Progress value={enrollment.progress} className="mt-2" />
                       </div>
-                      <Button 
+                      <Button
                         data-testid={`continue-learning-${enrollment.id}`}
                         onClick={() => navigate(`/course/${enrollment.course_id}/learn`)}
                         className="mt-4"
@@ -144,7 +146,7 @@ export default function StudentDashboard({ user, logout }) {
                     <div className="enrollment-content">
                       <h3>{enrollment.course?.title}</h3>
                       <p>{enrollment.course?.description?.substring(0, 100)}...</p>
-                      <Button 
+                      <Button
                         onClick={() => navigate(`/course/${enrollment.course_id}/learn`)}
                         className="mt-4"
                         variant="outline"

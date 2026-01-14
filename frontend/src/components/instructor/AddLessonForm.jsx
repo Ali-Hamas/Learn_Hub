@@ -33,8 +33,11 @@ export default function AddLessonForm({ courseId, sectionId, onClose, onSuccess 
         duration: formData.duration ? parseInt(formData.duration) : null
       };
 
-      await axios.post(`${API}/courses/${courseId}/lessons`, payload);
-      
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/courses/${courseId}/lessons`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
       toast.success('Lesson added successfully!');
       onSuccess();
     } catch (error) {
@@ -61,7 +64,7 @@ export default function AddLessonForm({ courseId, sectionId, onClose, onSuccess 
               id="title"
               data-testid="lesson-title-input"
               value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="Introduction to Variables"
               required
             />
@@ -70,9 +73,9 @@ export default function AddLessonForm({ courseId, sectionId, onClose, onSuccess 
           <div className="form-grid">
             <div className="form-group">
               <Label htmlFor="type">Content Type *</Label>
-              <Select 
+              <Select
                 value={formData.type}
-                onValueChange={(value) => setFormData({...formData, type: value})}
+                onValueChange={(value) => setFormData({ ...formData, type: value })}
               >
                 <SelectTrigger data-testid="lesson-type-select">
                   <SelectValue />
@@ -93,7 +96,7 @@ export default function AddLessonForm({ courseId, sectionId, onClose, onSuccess 
                 type="number"
                 min="1"
                 value={formData.duration}
-                onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                 placeholder="15"
               />
             </div>
@@ -108,7 +111,7 @@ export default function AddLessonForm({ courseId, sectionId, onClose, onSuccess 
                 id="content_url"
                 data-testid="content-url-input"
                 value={formData.content_url}
-                onChange={(e) => setFormData({...formData, content_url: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, content_url: e.target.value })}
                 placeholder={formData.type === 'video' ? 'https://youtube.com/watch?v=...' : 'https://example.com/file.pdf'}
                 required
               />
@@ -122,7 +125,7 @@ export default function AddLessonForm({ courseId, sectionId, onClose, onSuccess 
                 id="content_text"
                 data-testid="content-text-input"
                 value={formData.content_text}
-                onChange={(e) => setFormData({...formData, content_text: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, content_text: e.target.value })}
                 placeholder="<h2>Introduction</h2><p>Content here...</p>"
                 rows={10}
                 required
@@ -139,7 +142,7 @@ export default function AddLessonForm({ courseId, sectionId, onClose, onSuccess 
               type="number"
               min="1"
               value={formData.order}
-              onChange={(e) => setFormData({...formData, order: parseInt(e.target.value)})}
+              onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
               required
             />
           </div>

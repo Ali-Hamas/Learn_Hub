@@ -33,8 +33,11 @@ export default function AddLiveClassForm({ courseId, sectionId, onClose, onSucce
         max_attendees: formData.max_attendees ? parseInt(formData.max_attendees) : null
       };
 
-      await axios.post(`${API}/courses/${courseId}/live-classes`, payload);
-      
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/courses/${courseId}/live-classes`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
       toast.success('Live class scheduled successfully!');
       onSuccess();
     } catch (error) {
@@ -54,14 +57,14 @@ export default function AddLiveClassForm({ courseId, sectionId, onClose, onSucce
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="live-class-form" style={{padding: '1.5rem'}}>
+        <form onSubmit={handleSubmit} className="live-class-form" style={{ padding: '1.5rem' }}>
           <div className="form-group">
             <Label htmlFor="title">Class Title *</Label>
             <Input
               id="title"
               data-testid="live-class-title-input"
               value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="Live Q&A Session, Workshop, etc."
               required
             />
@@ -73,7 +76,7 @@ export default function AddLiveClassForm({ courseId, sectionId, onClose, onSucce
               id="description"
               data-testid="live-class-description-input"
               value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="What will be covered in this session?"
               rows={3}
             />
@@ -87,7 +90,7 @@ export default function AddLiveClassForm({ courseId, sectionId, onClose, onSucce
                 data-testid="scheduled-at-input"
                 type="datetime-local"
                 value={formData.scheduled_at}
-                onChange={(e) => setFormData({...formData, scheduled_at: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
                 required
               />
             </div>
@@ -101,7 +104,7 @@ export default function AddLiveClassForm({ courseId, sectionId, onClose, onSucce
                 min="15"
                 step="15"
                 value={formData.duration}
-                onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                 required
               />
             </div>
@@ -113,7 +116,7 @@ export default function AddLiveClassForm({ courseId, sectionId, onClose, onSucce
               id="meeting_url"
               data-testid="meeting-url-input"
               value={formData.meeting_url}
-              onChange={(e) => setFormData({...formData, meeting_url: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, meeting_url: e.target.value })}
               placeholder="https://zoom.us/j/..."
             />
           </div>
@@ -126,7 +129,7 @@ export default function AddLiveClassForm({ courseId, sectionId, onClose, onSucce
               type="number"
               min="1"
               value={formData.max_attendees}
-              onChange={(e) => setFormData({...formData, max_attendees: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, max_attendees: e.target.value })}
               placeholder="Leave empty for unlimited"
             />
           </div>

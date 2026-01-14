@@ -47,19 +47,22 @@ export default function ManageCourse({ user, logout }) {
 
   const fetchCourseData = async () => {
     try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+
       const [courseRes, sectionsRes, lessonsRes, liveClassesRes, quizzesRes] = await Promise.all([
-        axios.get(`${API}/courses/${id}`),
-        axios.get(`${API}/courses/${id}/sections`),
-        axios.get(`${API}/courses/${id}/lessons`),
-        axios.get(`${API}/courses/${id}/live-classes`),
-        axios.get(`${API}/quizzes/${id}`)
+        axios.get(`${API}/courses/${id}`, { headers }),
+        axios.get(`${API}/courses/${id}/sections`, { headers }),
+        axios.get(`${API}/courses/${id}/lessons`, { headers }),
+        axios.get(`${API}/courses/${id}/live-classes`, { headers }),
+        axios.get(`${API}/quizzes/${id}`, { headers })
       ]);
 
       const courseData = courseRes.data;
 
       // Ownership check for instructors
       if (user?.role === 'instructor') {
-        const instructorsRes = await axios.get(`${API}/instructors`);
+        const instructorsRes = await axios.get(`${API}/instructors`, { headers });
         const myInstructorProfile = instructorsRes.data.find(i => i.user_id === user.id);
 
         if (!myInstructorProfile || myInstructorProfile.id !== courseData.instructor_id) {
@@ -176,7 +179,7 @@ export default function ManageCourse({ user, logout }) {
               <span>{lessons.length} Lessons</span>
             </div>
           </div>
-          <div className="header-actions">
+          <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             {course.status === 'draft' ? (
               <Button
                 data-testid="publish-btn"

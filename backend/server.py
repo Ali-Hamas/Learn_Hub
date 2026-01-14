@@ -337,10 +337,14 @@ async def login(credentials: UserLogin):
     
     user = User(**{k: v for k, v in user_doc.items() if k != 'password'})
     
-    # Ensure ID is persisted in DB if it was missing or mismatched
+    # Repair missing ID if needed
     if "id" not in user_doc:
-        await db.users.update_one({"email": credentials.email}, {"$set": {"id": user.id}})
-        logger.info(f"Persisted new ID {user.id} for user {user.email}")
+        user_id = str(uuid.uuid4())
+        await db.users.update_one({"email": credentials.email}, {"$set": {"id": user_id}})
+        user.id = user_id
+        logger.info(f"Fixed missing ID for user {user.email}: {user_id}")
+    else:
+        user.id = user_doc['id']
         
     token = create_access_token({"sub": user.id, "role": user.role})
     return {"token": token, "user": user}
@@ -384,6 +388,7 @@ async def update_password(data: PasswordUpdate, current_user: User = Depends(get
 async def get_public_profile(user_id: str):
     user_doc = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
     if not user_doc:
+        logger.error(f"Public Profile lookup failed: User {user_id} not found")
         raise HTTPException(status_code=404, detail="User not found")
     
     # Also fetch courses taught by this user if they are an instructor
@@ -457,35 +462,25 @@ async def create_course(course_data: dict, current_user: User = Depends(get_curr
     if current_user.role not in ["instructor", "admin"]:
         raise HTTPException(status_code=403, detail="Only instructors and admins can create courses")
     
-    instructor_id = None
-    if current_user.role == "admin":
-        # For admin, we use their user_id as instructor_id or find their instructor profile if it exists
-        instructor = await db.instructors.find_one({"user_id": current_user.id})
-        if not instructor:
-            # Create a virtual instructor record for the admin if missing
-            instructor_id = f"admin-inst-{current_user.id}"
-        else:
-            instructor_id = instructor['id']
+    instructor = await db.instructors.find_one({"user_id": current_user.id})
+    if not instructor:
+        # Create a stable instructor profile if missing
+        instructor_id = str(uuid.uuid4())
+        new_instructor = {
+            "id": instructor_id,
+            "user_id": current_user.id,
+            "verification_status": "approved",
+            "earnings": 0.0,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.instructors.insert_one(new_instructor)
+        logger.info(f"Auto-created instructor profile for {current_user.email}")
     else:
-        # Regular instructor (auto-approved or previously set)
-        instructor = await db.instructors.find_one({"user_id": current_user.id})
-        if not instructor:
-            # Create instructor profile on the fly if missing (recovery case)
-            instructor_id = f"inst-{current_user.id}"
-            new_instructor = {
-                "id": instructor_id,
-                "user_id": current_user.id,
-                "verification_status": "approved",
-                "earnings": 0.0,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
-            await db.instructors.insert_one(new_instructor)
-        else:
-            instructor_id = instructor.get('id')
-            if not instructor_id:
-                # Fix missing ID in existing record
-                instructor_id = str(uuid.uuid4())
-                await db.instructors.update_one({"user_id": current_user.id}, {"$set": {"id": instructor_id}})
+        instructor_id = instructor['id']
+        if not instructor_id:
+            instructor_id = str(uuid.uuid4())
+            await db.instructors.update_one({"user_id": current_user.id}, {"$set": {"id": instructor_id}})
+            logger.info(f"Repaired missing instructor ID for {current_user.email}")
     
     try:
         course = Course(instructor_id=instructor_id, **course_data)
@@ -518,7 +513,9 @@ async def get_courses(
             user_doc = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
             if user_doc:
                 current_user = User(**user_doc)
-        except:
+                logger.info(f"get_courses: Identified user {current_user.email} via token")
+        except Exception as e:
+            logger.error(f"get_courses: Token decode failed: {str(e)}")
             pass
 
     query = {}
