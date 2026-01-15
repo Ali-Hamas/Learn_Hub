@@ -9,8 +9,9 @@ import tempfile
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
+import bcrypt
 
-# Load environment variables
+# Load environment variables IMMEDIATELY
 load_dotenv()
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional, Dict, Any
@@ -301,12 +302,12 @@ async def send_reset_email(email: str, token: str):
         print(f"DEBUG: SendGrid API Key exists: {bool(api_key)}")
         print(f"DEBUG: Sender Email: {sender}")
 
-        if not api_key or "your_api_key_here" in api_key:
-            logger.warning("SendGrid API Key not configured. Skipping email send.")
+        if not api_key:
+            logger.warning("SendGrid API Key (SENDGRID_API_KEY) is missing from environment variables. Skipping email send.")
             return
 
-        if not sender or "yourdomain.com" in sender:
-            logger.warning("Sender email not configured correctly. Skipping email send.")
+        if not sender:
+            logger.warning("Sender Email (SENDER_EMAIL) is missing from environment variables. Skipping email send.")
             return
 
         message = Mail(
@@ -326,10 +327,14 @@ async def send_reset_email(email: str, token: str):
         )
         
         sg = SendGridAPIClient(api_key)
-        sg.send(message)
-        logger.info(f"Password reset email sent to {email}")
+        response = sg.send(message)
+        
+        print(f"DEBUG: SendGrid Response Status Code: {response.status_code}")
+        print(f"DEBUG: SendGrid Response Body: {response.body}")
+        logger.info(f"Password reset email sent to {email}. Status: {response.status_code}")
     except Exception as e:
         logger.error(f"Failed to send reset email: {str(e)}")
+        print(f"DEBUG: SendGrid ERROR: {str(e)}")
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
