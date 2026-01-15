@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, BackgroundTasks, File, UploadFile
+print("Starting LearnHub Backend...")
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,6 +34,7 @@ from reportlab.platypus import Paragraph
 import io
 import stripe
 # Bcrypt compatibility patch for passlib
+import bcrypt
 if not hasattr(bcrypt, "__about__"):
     bcrypt.__about__ = type('About', (object,), {'__version__': bcrypt.__version__})
 
