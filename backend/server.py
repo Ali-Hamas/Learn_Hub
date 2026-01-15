@@ -1,7 +1,7 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, BackgroundTasks
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, BackgroundTasks, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import FileResponse, RedirectResponse
-from dotenv import load_dotenv
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
@@ -145,6 +145,7 @@ class Lesson(BaseModel):
     type: str  # video, pdf, text, live_class
     content_url: Optional[str] = None
     content_text: Optional[str] = None
+    notes_url: Optional[str] = None # Added for supplementary reading materials
     duration: Optional[int] = None  # in minutes
     order: int = 0
     is_preview: bool = False  # Can be previewed without enrollment
@@ -1362,6 +1363,54 @@ async def ai_course_assistant(prompt: str, current_user: User = Depends(get_curr
     return {"response": response}
 
 
+@api_router.post("/upload/thumbnail")
+async def upload_thumbnail(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    if current_user.role not in ["instructor", "admin"]:
+        raise HTTPException(status_code=403, detail="Instructor only")
+    
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    try:
+        file_extension = Path(file.filename).suffix
+        if not file_extension:
+            file_extension = ".png" # Default
+            
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        file_path = THUMBNAIL_DIR / unique_filename
+        
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+            
+        return {"url": f"/uploads/thumbnails/{unique_filename}"}
+    except Exception as e:
+        logging.error(f"Thumbnail upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to upload thumbnail")
+
+
+@api_router.post("/upload/lesson-pdf")
+async def upload_lesson_pdf(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    if current_user.role not in ["instructor", "admin"]:
+        raise HTTPException(status_code=403, detail="Instructor only")
+    
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="File must be a PDF")
+    
+    try:
+        unique_filename = f"{uuid.uuid4()}.pdf"
+        file_path = PDF_DIR / unique_filename
+        
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+            
+        return {"url": f"/uploads/pdfs/{unique_filename}"}
+    except Exception as e:
+        logging.error(f"PDF upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to upload PDF")
+
+
 @api_router.post("/ai/tutor")
 async def ai_tutor(course_id: str, question: str, current_user: User = Depends(get_current_user)):
     # Check enrollment
@@ -1943,6 +1992,16 @@ async def delete_review(review_id: str, current_user: User = Depends(get_current
     return {"message": "Review deleted"}
 
 
+
+# Static Files
+UPLOAD_DIR = ROOT_DIR / "uploads"
+THUMBNAIL_DIR = UPLOAD_DIR / "thumbnails"
+PDF_DIR = UPLOAD_DIR / "pdfs"
+UPLOAD_DIR.mkdir(exist_ok=True)
+THUMBNAIL_DIR.mkdir(exist_ok=True)
+PDF_DIR.mkdir(exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 # Include router and add CORS
 app.include_router(api_router)

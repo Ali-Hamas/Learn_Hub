@@ -379,14 +379,26 @@ export default function CoursePlayer({ user, logout }) {
                   <h2 data-testid="current-lesson-title">{currentLesson?.title}</h2>
                   <p className="lesson-type">Lesson {currentLessonIndex + 1} of {lessons.length}</p>
                 </div>
-                <Button
-                  data-testid="ai-tutor-toggle"
-                  onClick={() => setShowAITutor(!showAITutor)}
-                  variant={showAITutor ? 'default' : 'outline'}
-                >
-                  <MessageSquare size={18} className="mr-2" />
-                  AI Tutor
-                </Button>
+                <div className="flex items-center gap-2">
+                  {currentLesson?.notes_url && (
+                    <Button
+                      variant="outline"
+                      onClick={() => window.open(currentLesson.notes_url, '_blank')}
+                      className="text-primary hover:bg-primary/10"
+                    >
+                      <Download size={18} className="mr-2" />
+                      Download Notes (PDF)
+                    </Button>
+                  )}
+                  <Button
+                    data-testid="ai-tutor-toggle"
+                    onClick={() => setShowAITutor(!showAITutor)}
+                    variant={showAITutor ? 'default' : 'outline'}
+                  >
+                    <MessageSquare size={18} className="mr-2" />
+                    AI Tutor
+                  </Button>
+                </div>
               </div>
 
               {/* Lesson Content */}

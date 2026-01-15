@@ -20,6 +20,7 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(null); // 'description', 'requirements', 'outcomes'
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -113,6 +114,38 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
       toast.error(`Failed to generate ${target}`);
     } finally {
       setAiGenerating(null);
+    }
+  };
+
+  const handleThumbnailUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    const formDataUpload = new FormData();
+    formDataUpload.append('file', file);
+
+    setUploadingThumbnail(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API}/upload/thumbnail`, formDataUpload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      setFormData(prev => ({ ...prev, thumbnail: `${BACKEND_URL}${response.data.url}` }));
+      toast.success('Thumbnail uploaded successfully!');
+    } catch (error) {
+      toast.error('Failed to upload thumbnail');
+      console.error(error);
+    } finally {
+      setUploadingThumbnail(false);
     }
   };
 
@@ -325,10 +358,46 @@ export default function CreateCourseForm({ onClose, onSuccess }) {
           {step === 4 && (
             <div className="wizard-step-content">
               <div className="form-group">
-                <Label>Thumbnail URL</Label>
+                <div className="label-with-action">
+                  <Label>Course Thumbnail</Label>
+                  <div className="upload-actions">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => document.getElementById('thumb-upload').click()}
+                      disabled={uploadingThumbnail}
+                    >
+                      <Plus size={14} className="mr-1" />
+                      {uploadingThumbnail ? 'Uploading...' : 'Upload Image'}
+                    </Button>
+                    <input
+                      id="thumb-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleThumbnailUpload}
+                      style={{ display: 'none' }}
+                    />
+                  </div>
+                </div>
                 <div className="input-with-preview">
-                  <Input value={formData.thumbnail} onChange={(e) => setFormData({ ...formData, thumbnail: e.target.value })} placeholder="https://..." />
-                  {formData.thumbnail && <div className="thumb-preview"><img src={formData.thumbnail} alt="Preview" /></div>}
+                  <Input
+                    value={formData.thumbnail}
+                    onChange={(e) => setFormData({ ...formData, thumbnail: e.target.value })}
+                    placeholder="Enter image URL or upload above"
+                  />
+                  {formData.thumbnail && (
+                    <div className="thumb-preview">
+                      <img src={formData.thumbnail} alt="Preview" />
+                      <button
+                        type="button"
+                        className="remove-thumb"
+                        onClick={() => setFormData({ ...formData, thumbnail: '' })}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="form-grid">

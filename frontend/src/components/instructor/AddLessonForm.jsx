@@ -17,10 +17,13 @@ export default function AddLessonForm({ courseId, sectionId, onClose, onSuccess 
     type: 'video',
     content_url: '',
     content_text: '',
+    notes_url: '',
     duration: '',
     order: 1
   });
   const [loading, setLoading] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [uploadingNotes, setUploadingNotes] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,6 +47,70 @@ export default function AddLessonForm({ courseId, sectionId, onClose, onSuccess 
       toast.error(error.response?.data?.detail || 'Failed to add lesson');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Please select a PDF file');
+      return;
+    }
+
+    const formDataUpload = new FormData();
+    formDataUpload.append('file', file);
+
+    setUploadingPdf(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API}/upload/lesson-pdf`, formDataUpload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      setFormData(prev => ({ ...prev, content_url: `${BACKEND_URL}${response.data.url}` }));
+      toast.success('PDF uploaded successfully!');
+    } catch (error) {
+      toast.error('Failed to upload PDF');
+      console.error(error);
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
+
+  const handleNotesUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Please select a PDF file');
+      return;
+    }
+
+    const formDataUpload = new FormData();
+    formDataUpload.append('file', file);
+
+    setUploadingNotes(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API}/upload/lesson-pdf`, formDataUpload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      setFormData(prev => ({ ...prev, notes_url: `${BACKEND_URL}${response.data.url}` }));
+      toast.success('Notes PDF uploaded successfully!');
+    } catch (error) {
+      toast.error('Failed to upload Notes PDF');
+      console.error(error);
+    } finally {
+      setUploadingNotes(false);
     }
   };
 
@@ -104,9 +171,31 @@ export default function AddLessonForm({ courseId, sectionId, onClose, onSuccess 
 
           {(formData.type === 'video' || formData.type === 'pdf') && (
             <div className="form-group">
-              <Label htmlFor="content_url">
-                {formData.type === 'video' ? 'Video URL (YouTube/Vimeo)' : 'PDF URL'} *
-              </Label>
+              <div className="label-with-action">
+                <Label htmlFor="content_url">
+                  {formData.type === 'video' ? 'Video URL (YouTube/Vimeo)' : 'PDF URL'} *
+                </Label>
+                {formData.type === 'pdf' && (
+                  <div className="upload-actions">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => document.getElementById('pdf-upload').click()}
+                      disabled={uploadingPdf}
+                    >
+                      {uploadingPdf ? 'Uploading...' : 'Upload PDF'}
+                    </Button>
+                    <input
+                      id="pdf-upload"
+                      type="file"
+                      accept="application/pdf"
+                      onChange={handlePdfUpload}
+                      style={{ display: 'none' }}
+                    />
+                  </div>
+                )}
+              </div>
               <Input
                 id="content_url"
                 data-testid="content-url-input"
@@ -133,6 +222,36 @@ export default function AddLessonForm({ courseId, sectionId, onClose, onSuccess 
               <p className="text-sm text-gray-500 mt-1">You can use HTML tags for formatting</p>
             </div>
           )}
+
+          <div className="form-group border-t pt-4 mt-4">
+            <div className="label-with-action">
+              <Label htmlFor="notes_url">Supplementary Notes (PDF Attachment)</Label>
+              <div className="upload-actions">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => document.getElementById('notes-upload').click()}
+                  disabled={uploadingNotes}
+                >
+                  {uploadingNotes ? 'Uploading...' : 'Upload Notes PDF'}
+                </Button>
+                <input
+                  id="notes-upload"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleNotesUpload}
+                  style={{ display: 'none' }}
+                />
+              </div>
+            </div>
+            <Input
+              id="notes_url"
+              value={formData.notes_url}
+              onChange={(e) => setFormData({ ...formData, notes_url: e.target.value })}
+              placeholder="Enter notes PDF URL or upload above"
+            />
+          </div>
 
           <div className="form-group">
             <Label htmlFor="order">Lesson Order *</Label>
