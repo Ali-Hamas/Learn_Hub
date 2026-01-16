@@ -227,6 +227,40 @@ h6 {
   height: 200px;
   overflow: hidden;
   background: #e5e7eb;
+  position: relative;
+}
+
+.status-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.status-badge.published {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.status-badge.draft {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.status-badge.rejected {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .course-thumbnail img {

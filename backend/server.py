@@ -653,8 +653,8 @@ async def create_course(course_data: dict, current_user: User = Depends(get_curr
     
     try:
         course = Course(instructor_id=instructor_id, **course_data)
-        # Automatically approve and publish course
-        course.status = "published"
+        # Force status to pending for moderation
+        course.status = "pending"
         
         doc = course.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
@@ -663,6 +663,54 @@ async def create_course(course_data: dict, current_user: User = Depends(get_curr
     except Exception as e:
         logging.error(f"Course creation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error during course creation: {str(e)}")
+
+
+# ==================== ADMIN COURSE ROUTES ====================
+@api_router.get("/admin/courses/pending")
+async def get_pending_courses(current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    
+    courses = await db.courses.find({"status": "pending"}, {"_id": 0}).to_list(100)
+    
+    # Enrich with instructor name
+    for course in courses:
+        instructor = await db.instructors.find_one({"id": course['instructor_id']})
+        if instructor:
+            user = await db.users.find_one({"id": instructor['user_id']})
+            course['instructor_name'] = user['name'] if user else "Unknown"
+            
+    return courses
+
+@api_router.patch("/admin/courses/{course_id}/moderate")
+async def moderate_course(course_id: str, approved: bool, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+        
+    new_status = "published" if approved else "rejected"
+    result = await db.courses.update_one(
+        {"id": course_id},
+        {"$set": {"status": new_status}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Course not found")
+        
+    return {"message": f"Course {new_status}"}
+
+@api_router.patch("/admin/courses/{course_id}/feature")
+async def feature_course(course_id: str, featured: bool, current_user: User = Depends(get_current_user)):
+     if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+        
+     result = await db.courses.update_one(
+        {"id": course_id},
+        {"$set": {"is_featured": featured}}
+    )
+     if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Course not found")
+        
+     return {"message": f"Course featured status updated"}
 
 
 @api_router.get("/courses")
